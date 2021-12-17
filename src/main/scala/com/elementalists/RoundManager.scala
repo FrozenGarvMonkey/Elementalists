@@ -26,7 +26,7 @@ object RoundManager {
     final case object Water extends EarthFireWaterCommands
     final case object NotSelected extends EarthFireWaterCommands
 
-    private def selectRPSWinner(first: EarthFireWaterCommands, second: EarthFireWaterCommands): EarthFireWaterResults = {
+    private def selectEFSWinner(first: EarthFireWaterCommands, second: EarthFireWaterCommands): EarthFireWaterResults = {
         first match {
             case Fire => 
                 second match {
@@ -62,7 +62,7 @@ object RoundManager {
 
     sealed trait RoundManagerCommands 
     sealed trait RoundManagerResponses extends GameSessionResponses
-    // RPS Selection fired by the player 
+    // EFS Selection fired by the player 
     final case class ElementSelection(fromPlayer: ActorRef[GameSessionResponses], selection: EarthFireWaterCommands) extends RoundManagerCommands
     // Request fired to the player to request them to make a selection
     final case class ElementSelectionRequest(roundManager: ActorRef[RoundManagerCommands], remainingRound: Int) extends RoundManagerResponses
@@ -84,7 +84,7 @@ class RoundManager(context: ActorContext[RoundManager.RoundManagerCommands], gam
     // Earth-Fire-Water game states
     private var playerSelectionMap: Map[String, EarthFireWaterCommands] = Map()
     private val winnerSelectionRule: Map[String, EarthFireWaterCommands] => EarthFireWaterResults = (selectionMap) => {
-        selectRPSWinner(selectionMap.head._2, selectionMap.last._2)
+        selectEFSWinner(selectionMap.head._2, selectionMap.last._2)
     }
     
     val thisPlayer = players.head

@@ -61,14 +61,14 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
                 clientRef ! GameClient.MakeElementSelection(roundCount)
                 Behaviors.same
             case UserElementSelection(selection) => 
-                var rpsSelection: RoundManager.EarthFireWaterCommands = RoundManager.NotSelected
+                var EFSSelection: RoundManager.EarthFireWaterCommands = RoundManager.NotSelected
                 selection match {
-                    case "1" => rpsSelection = Earth
-                    case "2" => rpsSelection = Fire
-                    case "3" => rpsSelection = Water
-                    case _ => rpsSelection = NotSelected
+                    case "1" => EFSSelection = Earth
+                    case "2" => EFSSelection = Fire
+                    case "3" => EFSSelection = Water
+                    case _ => EFSSelection = NotSelected
                 }
-                roundManager.get ! ElementSelection(context.self, rpsSelection)
+                roundManager.get ! ElementSelection(context.self, EFSSelection)
                 Behaviors.same
             case UpdateSumScore(change, tie) => 
                 if (tie) {
