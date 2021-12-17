@@ -9,7 +9,7 @@ import GameSessionManager._
 import RoundManager.{EarthFireWaterSelectionRequest, EarthFireWaterSelection, EarthFireWaterCommands, Earth, Fire, Water, NotSelected}
 import _root_.com.elementalists.GameSessionManager.GameSessionCommands
 
-/* Player class that represents a client after succesful name registration. It holds the accumulated scores of each player. */ 
+/* Player class that represents a client after successful name registration. It holds the accumulated scores of each player. */ 
 object Player {
     // Messages used to accept or reject a game invitation
     sealed trait PlayerResponses extends GameSessionCommands
@@ -40,25 +40,26 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
         msg match {
             case BindGameSession(session) =>
                 gameSession = Some(session)
-                this
+                Behaviors.same
             case UnbindGameSession => 
                 gameSession = None
-                this 
+                clientRef ! GameClient.BecomeIdle
+                Behaviors.same
             case GameInvitationRequest(fromPlayerName) =>
                 clientRef ! GameClient.ReceivedGameInvitation(fromPlayerName)
-                this
+                Behaviors.same
             case ClientGameInvitationResponse(agreed) => 
                 if (agreed) { gameSession.get ! InvitationAccepted } else {
                     gameSession.get ! InvitationRejected
                 }
-                this 
+                Behaviors.same 
             case ClientRematchInvitationResponse(agreed) => 
                 if (agreed) { gameSession.get ! RematchInvitationResponse(InvitationAccepted) } else { gameSession.get ! RematchInvitationResponse(InvitationRejected) }
-                this 
+                Behaviors.same 
             case EarthFireWaterSelectionRequest(roundManager, roundCount) => 
                 this.roundManager = Some(roundManager)
                 clientRef ! GameClient.MakeRPSSelection(roundCount)
-                this
+                Behaviors.same
             case ClientRPSSelection(selection) => 
                 var rpsSelection: RoundManager.EarthFireWaterCommands = RoundManager.NotSelected
                 selection match {
@@ -68,7 +69,7 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
                     case _ => rpsSelection = NotSelected
                 }
                 roundManager.get ! EarthFireWaterSelection(context.self, rpsSelection)
-                this
+                Behaviors.same
             case AccumulatedScoresUpdate(change, tie) => 
                 if (tie) {
                     clientRef ! GameClient.RoundTie(accumulatedScores)
@@ -85,23 +86,23 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
                         clientRef ! GameClient.RoundLost(accumulatedScores)
                     }
                 }
-                this
+                Behaviors.same
             case GameSessionLost(totalScore) => 
                 clientRef ! GameClient.GameLost(totalScore)
-                this 
+                Behaviors.same
             case GameSessionVictory(totalScore) => 
                 clientRef ! GameClient.GameVictory(totalScore)
-                this 
+                Behaviors.same 
             case GameSessionTie(totalScore) => 
                 clientRef ! GameClient.GameTie(totalScore)
-                this
+                Behaviors.same
             case RematchInvitationRequest(opponentName) => 
                 clientRef ! GameClient.ReceivedRematchInvitation(opponentName)
-                this
+                Behaviors.same
             case MatchmakingFailed =>
                 clientRef ! GameClient.BecomeIdle
                 roundManager = None
-                this
+                Behaviors.same
         }
     }
 }

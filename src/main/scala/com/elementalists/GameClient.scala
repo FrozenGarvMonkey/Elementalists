@@ -31,11 +31,10 @@ object GameClient {
     private case class ListingResponse(listing: Receptionist.Listing) extends Command
     final case object ServerLookup extends Command
     final case object ClientNameRegistration extends Command
+    final case object BecomeIdle extends Command
     final case class ReceivedGameInvitation(fromPlayerName: String) extends Command
     final case class ReceivedRematchInvitation(opponentName: String) extends Command
-    final case class  MakeRPSSelection(roundCount: Int) extends Command
-    final case object BecomeIdle extends Command
-
+    final case class MakeRPSSelection(roundCount: Int) extends Command
     final case class RoundLost(score: Int) extends Command
     final case class RoundVictory(score: Int) extends Command 
     final case class RoundTie(score: Int) extends Command
@@ -62,116 +61,116 @@ class GameClient(context: ActorContext[GameClient.Command]) extends AbstractBeha
     override def onMessage(msg: Command): Behavior[Command] = {
         msg match {
             case ServerLookup => 
-                println("Looking up for the game server.")
+                println(Console.CYAN + "Looking up for the game server." + Console.RESET)
                 val adapter = context.messageAdapter[Receptionist.Listing](ListingResponse)
                 context.system.receptionist ! Receptionist.Subscribe(GameServer.ServerKey, adapter)
-                this
+                Behaviors.same
             case ServerResponse(message, server) =>
-                println("Got the session server from the server: " + message)
-                println("Session server path: " + server.path)
+                println(Console.CYAN + "Got the session server from the server: " + message + Console.RESET)
+                println(Console.CYAN + "Session server path: " + server.path + Console.RESET)
                 sessionServer = Some(server)
                 context.self ! ClientNameRegistration
-                this
+                Behaviors.same
             case ListingResponse(GameServer.ServerKey.Listing(listing)) =>
-                println("Receptionist responded!")
+                println(Console.CYAN + "Receptionist responded!" + Console.RESET)
                 listing.foreach { serverRef =>
-                    println("Sending a session server lookup request to the server.")
+                    println(Console.CYAN + "Sending a session server lookup request to the server." + Console.RESET)
                     serverRef ! GameServer.SessionServerLookup(context.self)
                 } 
-                this
+                Behaviors.same
             case ClientNameRegistration => 
                 val clientInput = readClientName()
-                println("Checking whether your name is available...")
-                sessionServer.get ! SessionManager.NameCheckRequest(clientInput, context.self)
-                this
+                println(Console.CYAN + "Checking whether your name is available..." + Console.RESET)
+                sessionServer.get ! SessionManager.NameCheckRequest(clientInput.replace(" ", ""), context.self)
+                Behaviors.same
             case NameRejected => 
-                println("Sorry, the name is taken by other players.")
+                println(Console.CYAN + "Sorry, the name is taken by other players." + Console.RESET)
                 context.self ! ClientNameRegistration
-                this
+                Behaviors.same
             case OnlineMembersListing(players) => 
-                println("Member list updated.")
+                println(Console.CYAN + "Member list updated." + Console.RESET)
                 onlineMembers = players.removed(playerName)
                 if (idle && onlineMembers.size >= 1) { showAvailableOpponents() }
-                this
+                Behaviors.same
             case NewPlayerAcknowledgement(player, playerName, gameSessionManager, players) => 
-                println(s"Successfully registered with name $playerName!")
+                println(Console.CYAN + s"Successfully registered with name $playerName!" + Console.RESET)
                 this.player = Some(player)
                 this.playerName = playerName
                 gameSessionServer = Some(gameSessionManager)
                 onlineMembers = players.removed(playerName)
                 presentGameMenu()
-                this
+                Behaviors.same
             case ReceivedGameInvitation(from) =>
-                onGameInvitation(s"Received game invitation from $from!\nDo you want to play a game with him/her? (Y/N)")
-                this
+                onGameInvitation(Console.CYAN + s"Received game invitation from $from!\nDo you want to play a game with him/her? (Y/N)" + Console.RESET)
+                Behaviors.same
             case ReceivedRematchInvitation(opponentName) => 
-                onRematchInvitation(s"Do you want to rematch with $opponentName? (Y/N)")
-                this
+                onRematchInvitation(Console.CYAN + s"Do you want to rematch with $opponentName? (Y/N)" + Console.RESET)
+                Behaviors.same
             case BecomeIdle =>
-                println("It seems like your opponent does not want to play the game...")
+                println(Console.CYAN + "It seems like your opponent does not want to play the game..." + Console.RESET)
                 idle = true
                 presentGameMenu()
-                this
+                Behaviors.same
             case MakeRPSSelection(count) => 
                 onRPSSelectionRequest(count)
-                this
+                Behaviors.same
             case RoundLost(score) => 
                 onRoundLost(score)
-                this 
+                Behaviors.same
             case RoundVictory(score) =>
                 onRoundVictory(score)
-                this
+                Behaviors.same
             case RoundTie(score) => 
                 onRoundTie(score)
-                this
+                Behaviors.same
             case GameLost(score) => 
                 onGameLost(score)
-                this 
+                Behaviors.same
             case GameVictory(score) => 
                 onGameVictory(score)
-                this 
+                Behaviors.same 
             case GameTie(score) => 
                 onGameTie(score)
-                this 
+                Behaviors.same
         }
     }
 
     private def onGameLost(score: Int) = {
-        println(s"You have lost the game. Total score earned in this game: $score")
+        println(Console.RED + Console.BOLD + s"You have lost the game. Total score earned in this game: $score" + Console.RESET)
     }
 
     private def onGameVictory(score: Int) = {
-        println(s"You have won the game! Total score earned in this game: $score")
+        println(Console.GREEN + Console.BOLD + s"You have won the game! Total score earned in this game: $score" + Console.RESET)
     }
 
     private def onGameTie(score: Int) = {
-        println(s"No one wins the game!. Total score earned in this game: $score")
+        println(Console.CYAN + Console.BOLD + s"No one wins the game!. Total score earned in this game: $score" + Console.RESET)
     }
 
     private def onRoundLost(score: Int) = {
-        println(s"You lost the last round. Your current score is $score.")
+        println(Console.RED + Console.BOLD + s"You lost the last round. Your current score is $score." + Console.RESET)
     }
 
     private def onRoundVictory(score: Int) = {
-        println(s"You won the last round! Congratulations! Your current score is $score." )
+        println(Console.GREEN + Console.BOLD + s"You won the last round! Congratulations! Your current score is $score." + Console.RESET)
     }
 
     private def onRoundTie(score: Int) = {
-        println(s"It was a tie! Your current score is: $score.")
+        println(Console.CYAN + Console.BOLD + s"It was a tie! Your current score is: $score." + Console.RESET)
     }
 
     private def readClientName(): String = {
-        println("Please register your name: ")
+        print(Console.CYAN + Console.BOLD + "Please register your name: " + Console.RESET)
         StdIn.readLine()
     }
 
     private def presentGameMenu(): Unit = {
-        println("Welcome to the Elementalists!")
+        println(Console.CYAN + Console.BOLD + "Welcome to the Elementalists!" + Console.RESET)
         
         if (onlineMembers.size > 0) { 
             showAvailableOpponents() 
         } else {
-            println("Looks like there are no people online... ")
+            println(Console.CYAN + Console.BOLD + "Looks like there are no people online... " + Console.RESET)
         }
     }
 
@@ -197,26 +196,41 @@ class GameClient(context: ActorContext[GameClient.Command]) extends AbstractBeha
     }
 
     private def onRPSSelectionRequest(count: Int) = {
-        println(s"Remaining rounds: $count\nPlease make a selection:\n1. Earth\n2. Fire\n3. Water\n")
-        val selection = StdIn.readLine()
+        val validResponse  = List("1", "2", "3")
+        var selection = ""
+        while (!validResponse.contains(selection)) {
+            println(Console.CYAN + Console.BOLD + s"Remaining rounds: $count\nPlease make a selection:\n1. Earth\n2. Fire\n3. Water" + Console.RESET)
+            selection = StdIn.readLine()
+        }
         player.get ! Player.ClientRPSSelection(selection)
     }
 
     private def showAvailableOpponents(): Unit = {
         val memberArray = onlineMembers.keys.toArray
-        println("Online Members")
+        println(Console.CYAN + Console.BOLD + "Online Members" + Console.RESET)
         for (m <- memberArray) {
-            println(s"${memberArray.indexOf(m)}.$m")
+            println(Console.CYAN + s"${memberArray.indexOf(m)}.$m" + Console.RESET)
         }
         // TODO: might be in deadlock 
-        println("Enter the player number to play the game with: (-1 if there is no one that you wish to play the game with)")
+        println(Console.CYAN + Console.BOLD + "Enter the player number to play the game with: (-1 if there is no one that you wish to play the game with)" + Console.RESET)
         val choice = StdIn.readLine()
-        if (choice != "-1") {
+        try {
             val index = choice.toInt
-            val selectedName = memberArray(index)
-            gameSessionServer.get ! GameSessionManager.GamePartnerSelection(onlineMembers(selectedName), selectedName)
-            idle = false
-            println("Invitation sent! Waiting for the player to accept...")
+            if (index >= -1 && index < memberArray.length){
+                if (index != -1) {
+                    
+                    val selectedName = memberArray(index)
+                    gameSessionServer.get ! GameSessionManager.GamePartnerSelection(onlineMembers(selectedName), selectedName)
+                    idle = false
+                    println(Console.CYAN + Console.BOLD + "Invitation sent! Waiting for the player to accept..." + Console.RESET)
+                }
+            } else{
+                println(Console.RED + Console.BOLD + "Invalid Choice, Try Again\n" + Console.RESET)
+            }
+        }
+        catch{
+            case _ : Throwable =>
+                println(Console.RED + Console.BOLD + "Invalid Choice, Try Again\n" + Console.RESET)
         }
     }
 }

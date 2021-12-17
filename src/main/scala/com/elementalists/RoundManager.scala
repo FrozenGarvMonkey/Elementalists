@@ -99,7 +99,7 @@ class RoundManager(context: ActorContext[RoundManager.RoundManagerCommands], gam
                 if (!playerSelectionMap.valuesIterator.contains(NotSelected)) {
                     context.self ! AllPlayersSelected
                 }
-                this
+                Behaviors.same
             case AllPlayersSelected => 
                 val result = winnerSelectionRule(playerSelectionMap)
                 result match {
@@ -110,13 +110,13 @@ class RoundManager(context: ActorContext[RoundManager.RoundManagerCommands], gam
                     case Tie => 
                         gameSessionManager ! GameStatusUpdate(thisPlayer, thatPlayer, true)
                 }
-                this
+                Behaviors.same
             case StartRound(remainingRound) => 
                 playerSelectionMap += (thisPlayer.path.toString() -> NotSelected)
                 playerSelectionMap += (thatPlayer.path.toString() -> NotSelected)
                 thisPlayer ! EarthFireWaterSelectionRequest(context.self, remainingRound)
                 thatPlayer ! EarthFireWaterSelectionRequest(context.self, remainingRound)
-                this 
+                Behaviors.same 
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.elementalists
 
-
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.Behavior
@@ -25,8 +24,8 @@ object GameServer {
     // Client request message that this server can process 
     final case class SessionServerLookup(clientRef: ActorRef[GameClient.ServerResponse]) extends Command
     
-    // Server key to register in the receiptionist service so that the remote client can get the actor for the server 
-    val ServerKey: ServiceKey[Command] = ServiceKey("EarthPapperWaterServer")
+    // Server key to register in the receptionist service so that the remote client can get the actor for the server 
+    val ServerKey: ServiceKey[Command] = ServiceKey("EarthFireWater")
 
     def apply(): Behavior[Command] = {
         Behaviors.setup { context => 
@@ -43,11 +42,9 @@ class GameServer(context: ActorContext[GameServer.Command]) extends AbstractBeha
     override def onMessage(msg: Command): Behavior[Command] = {
         msg match {
             case SessionServerLookup(ref) =>
-                println("Received a message from client.")
-                val response = s"Hello Client!"
-                println("Sent back a message " + response)
-                ref ! GameClient.ServerResponse(response, sessionManagerReference)
-                this
+                println(Console.CYAN + "Received a message from client.\nSent back a message: Hello Client! " + Console.RESET)
+                ref ! GameClient.ServerResponse("Hello Client!", sessionManagerReference)
+                Behaviors.same
         }
     }
 

@@ -34,7 +34,7 @@ object GameSessionManager {
     final case class GameSessionTie(totalScore: Int) extends GameSessionResponses
     // Message fired to collect the rematch invitation response 
     final case class RematchInvitationRequest(opponentName: String) extends GameSessionResponses
-    final case class BindGameSession(sesion: ActorRef[GameSessionManager.GameSessionCommands]) extends GameSessionResponses
+    final case class BindGameSession(session: ActorRef[GameSessionManager.GameSessionCommands]) extends GameSessionResponses
     final case object UnbindGameSession extends GameSessionResponses
     final case object MatchmakingFailed extends GameSessionResponses
 
@@ -66,23 +66,23 @@ class GameSessionManager(context: ActorContext[GameSessionManager.GameSessionCom
                 opponent ! GameInvitationRequest(thisPlayerName)
                 thatPlayer = Some(opponent)
                 thatPlayerName = name
-                this
+                Behaviors.same
             case Player.InvitationAccepted => 
                 context.self ! GameCreated
-                this
+                Behaviors.same
             case Player.InvitationRejected | Player.NotResponded =>
                 thatPlayer.get ! UnbindGameSession
                 thatPlayer = None
                 thatPlayerName = ""
                 thisPlayer ! MatchmakingFailed
-                this 
+                Behaviors.same
             case GameCreated => 
                 val roundManagerAdapter = context.messageAdapter[RoundManager.RoundManagerResponses](WrappedRoundUpdates.apply)
                 val players = Array(thisPlayer, thatPlayer.get)
                 roundManager = Some(context.spawn(RoundManager(roundManagerAdapter, players), "Round-Manager"))
                 roundManager.get ! StartRound(roundCount)
                 roundCount -= 1
-                this
+                Behaviors.same
             case WrappedRoundUpdates(response) => 
                 response match {
                     case GameStatusUpdate(roundWinner, roundLoser, tie) => 
@@ -113,22 +113,22 @@ class GameSessionManager(context: ActorContext[GameSessionManager.GameSessionCom
                             roundCount = 3
                             gameSessionRecord = Array(0, 0)
                         }
-                        this
+                        Behaviors.same
                     case _ => 
                         Behaviors.unhandled
                 }
             case RematchInvitation => 
                 thisPlayer ! RematchInvitationRequest(thatPlayerName)
                 thatPlayer.get ! RematchInvitationRequest(thisPlayerName)
-                this
+                Behaviors.same
             case RematchInvitationResponse(response) => 
-                println("Got a rematch invitation response! " + response.toString())
+                println(Console.CYAN + "Got a rematch invitation response! " + response.toString() + Console.RESET)
                 rematchIntentionMap = rematchIntentionMap.appended(response)
                 if (rematchIntentionMap.size == 2) {
                     
-                    println("Got both responses!")
+                    println(Console.CYAN + "Got both responses!" + Console.RESET)
                     if (rematchIntentionMap.contains(Player.InvitationRejected)) { 
-                        println("One of the player rejected...")
+                        println(Console.CYAN + "One of the player rejected..." + Console.RESET)
                         thisPlayer ! MatchmakingFailed
                         thatPlayer.get ! MatchmakingFailed
                         thatPlayer = None 
@@ -136,13 +136,13 @@ class GameSessionManager(context: ActorContext[GameSessionManager.GameSessionCom
                         context.stop(roundManager.get)
                         roundManager = None
                     } else {        
-                        println("Both players accepted to rematch...Restarting the game...")
+                        println(Console.CYAN + "Both players accepted to rematch...Restarting the game..." + Console.RESET)
                         roundManager.get ! StartRound(roundCount)
                         roundCount -= 1
                     }
                     rematchIntentionMap = Array()
                 }
-                this
+                Behaviors.same
         }   
     }
 }

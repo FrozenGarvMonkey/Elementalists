@@ -48,18 +48,18 @@ class SessionManager(context: ActorContext[SessionManager.SessionRequests]) exte
                     actorRef ! NewPlayerAcknowledgement(player, name, gameSessionManager, clientNameToPlayerRef)
                     context.self ! PlayerCreated(actorRef)
                 }
-                this 
-            case PlayerCreated(newClient) => 
-                println("New player joined the game!")
+                Behaviors.same 
+            case PlayerCreated(newClient) =>
+                println(Console.CYAN + "New player joined the game!" + Console.RESET)
                 onlineClients.foreach { client => 
-                    println(s"Firing updated member listing to ${client.path.name}")
+                    println(Console.CYAN + s"Firing updated member listing to ${client.path.name}" + Console.RESET)
                     client ! OnlineMembersListing(clientNameToPlayerRef) }
-                this
+                Behaviors.same
             case PlayerDisconnected(name, clientRef) => 
                 clientNameToPlayerRef = clientNameToPlayerRef.removed(name)
                 onlineClients -= clientRef
                 onlineClients.foreach { _ ! OnlineMembersListing(clientNameToPlayerRef)}
-                this
+                Behaviors.same
         }
     }
 }
