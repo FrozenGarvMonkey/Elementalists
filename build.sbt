@@ -1,26 +1,18 @@
-val AkkaVersion = "2.6.10"
-val AkkaManagementVersion = "1.0.9"
+name := "DS-Final-Assignment"
 
-resolvers += {"custome1" at "http://4thline.org/m2"} withAllowInsecureProtocol(true)
+version := "1.0"
 
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+scalaVersion := "2.13.7"
+
+lazy val akkaVersion = "2.6.10"
 
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-actor-typed" % AkkaVersion,
-  "com.typesafe.akka" %% "akka-remote" % AkkaVersion,
-  "com.typesafe.akka" %% "akka-cluster-typed" % AkkaVersion,
+  "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion,
   "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "com.typesafe.akka" %% "akka-serialization-jackson" % AkkaVersion,
-  "com.typesafe.akka" %% "akka-discovery" % AkkaVersion,
-  "com.typesafe.akka" %% "akka-cluster-sharding" % AkkaVersion,
-  "org.fourthline.cling" % "cling-core" % "2.1.2",
-  "org.fourthline.cling" % "cling-support" % "2.1.2",
-  "com.typesafe" % "config" % "1.4.1",
-  "org.scalafx" %% "scalafx" % "8.0.192-R14",
-  "org.scalafx" %% "scalafxml-core-sfx8" % "0.5",
-  "com.lightbend.akka.management" %% "akka-management" % AkkaManagementVersion,
-  "com.lightbend.akka.management" %% "akka-management-cluster-http" % AkkaManagementVersion,
-  "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % AkkaManagementVersion,
+  "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
+  "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion,
+  "com.typesafe.akka" %% "akka-remote" % akkaVersion,
+  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-serialization-jackson" % akkaVersion,
+  "org.scalatest" %% "scalatest" % "3.1.0" % Test
 )
-
-fork := false
