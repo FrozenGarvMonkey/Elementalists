@@ -6,7 +6,7 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.ActorContext
 import GameSessionManager._
-import RoundManager.{EarthFireWaterSelectionRequest, EarthFireWaterSelection, EarthFireWaterCommands, Earth, Fire, Water, NotSelected}
+import RoundManager.{ElementSelectionRequest, ElementSelection, EarthFireWaterCommands, Earth, Fire, Water, NotSelected}
 import _root_.com.elementalists.GameSessionManager.GameSessionCommands
 
 /* Player class that represents a client after successful name registration. It holds the accumulated scores of each player. */ 
@@ -19,8 +19,8 @@ object Player {
 
     sealed trait PlayerRequests extends GameSessionResponses
     final case class ClientGameInvitationResponse(agreed: Boolean) extends PlayerRequests
-    final case class ClientRPSSelection(selection: String) extends PlayerRequests
-    final case class ClientRematchInvitationResponse(agreed: Boolean) extends PlayerRequests
+    final case class UserElementSelection(selection: String) extends PlayerRequests
+    final case class ClientRematchResponse(agreed: Boolean) extends PlayerRequests
 
     def apply(name: String, client: ActorRef[GameClient.Command]): Behavior[GameSessionResponses] = {
         Behaviors.setup { context => 
@@ -45,7 +45,7 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
                 gameSession = None
                 clientRef ! GameClient.BecomeIdle
                 Behaviors.same
-            case GameInvitationRequest(fromPlayerName) =>
+            case ChallengeRequest(fromPlayerName) =>
                 clientRef ! GameClient.ReceivedGameInvitation(fromPlayerName)
                 Behaviors.same
             case ClientGameInvitationResponse(agreed) => 
@@ -53,14 +53,14 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
                     gameSession.get ! InvitationRejected
                 }
                 Behaviors.same 
-            case ClientRematchInvitationResponse(agreed) => 
-                if (agreed) { gameSession.get ! RematchInvitationResponse(InvitationAccepted) } else { gameSession.get ! RematchInvitationResponse(InvitationRejected) }
+            case ClientRematchResponse(agreed) => 
+                if (agreed) { gameSession.get ! RematchResponse(InvitationAccepted) } else { gameSession.get ! RematchResponse(InvitationRejected) }
                 Behaviors.same 
-            case EarthFireWaterSelectionRequest(roundManager, roundCount) => 
+            case ElementSelectionRequest(roundManager, roundCount) => 
                 this.roundManager = Some(roundManager)
-                clientRef ! GameClient.MakeRPSSelection(roundCount)
+                clientRef ! GameClient.MakeElementSelection(roundCount)
                 Behaviors.same
-            case ClientRPSSelection(selection) => 
+            case UserElementSelection(selection) => 
                 var rpsSelection: RoundManager.EarthFireWaterCommands = RoundManager.NotSelected
                 selection match {
                     case "1" => rpsSelection = Earth
@@ -68,9 +68,9 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
                     case "3" => rpsSelection = Water
                     case _ => rpsSelection = NotSelected
                 }
-                roundManager.get ! EarthFireWaterSelection(context.self, rpsSelection)
+                roundManager.get ! ElementSelection(context.self, rpsSelection)
                 Behaviors.same
-            case AccumulatedScoresUpdate(change, tie) => 
+            case UpdateSumScore(change, tie) => 
                 if (tie) {
                     clientRef ! GameClient.RoundTie(accumulatedScores)
                 } else {
@@ -87,16 +87,16 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
                     }
                 }
                 Behaviors.same
-            case GameSessionLost(totalScore) => 
-                clientRef ! GameClient.GameLost(totalScore)
+            case MatchLost(totalScore) => 
+                clientRef ! GameClient.MatchLost(totalScore)
                 Behaviors.same
-            case GameSessionVictory(totalScore) => 
-                clientRef ! GameClient.GameVictory(totalScore)
+            case MatchWin(totalScore) => 
+                clientRef ! GameClient.MatchVictory(totalScore)
                 Behaviors.same 
-            case GameSessionTie(totalScore) => 
-                clientRef ! GameClient.GameTie(totalScore)
+            case MatchTie(totalScore) => 
+                clientRef ! GameClient.MatchTie(totalScore)
                 Behaviors.same
-            case RematchInvitationRequest(opponentName) => 
+            case RematchRequest(opponentName) => 
                 clientRef ! GameClient.ReceivedRematchInvitation(opponentName)
                 Behaviors.same
             case MatchmakingFailed =>

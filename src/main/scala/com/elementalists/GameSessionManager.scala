@@ -8,7 +8,7 @@ import akka.actor.typed.scaladsl.ActorContext
 import RoundManager.{RoundManagerCommands, RoundManagerResponses, GameStatusUpdate, StartRound}
 
 /* This actor class manages a whole game session containing several rounds between two players. It also asks the player's intention to rematch.  
-    Also, this actor class is bound to a specific player, as it is being created and assigned to him during sucessful name registration. The player 
+    Also, this actor class is bound to a specific player, as it is being created and assigned to him during successful name registration. The player 
     then uses this manager to invite another partner for a game.  */
 object GameSessionManager {
     trait GameSessionCommands
@@ -22,18 +22,18 @@ object GameSessionManager {
     final case object RematchInvitation extends GameSessionCommands
     // Analogous to the game invitation response, except that this message class is no longer specific to the opponent but this player himself 
     // This is because we need to ask both parties whether to rematch with the current opponent
-    final case class RematchInvitationResponse(response: Player.PlayerResponses) extends GameSessionCommands
+    final case class RematchResponse(response: Player.PlayerResponses) extends GameSessionCommands
     
     trait GameSessionResponses
     // Game invitation request issued by this class to the invited player to create a game 
-    final case class GameInvitationRequest(fromPlayerName: String) extends GameSessionResponses
+    final case class ChallengeRequest(fromPlayerName: String) extends GameSessionResponses
     // Scores update message issued to the player to update their scores 
-    final case class AccumulatedScoresUpdate(changeInScore: Int, tie: Boolean) extends GameSessionResponses 
-    final case class GameSessionVictory(totalScore: Int) extends GameSessionResponses
-    final case class GameSessionLost(totalScore: Int) extends GameSessionResponses
-    final case class GameSessionTie(totalScore: Int) extends GameSessionResponses
+    final case class UpdateSumScore(changeInScore: Int, tie: Boolean) extends GameSessionResponses 
+    final case class MatchWin(totalScore: Int) extends GameSessionResponses
+    final case class MatchLost(totalScore: Int) extends GameSessionResponses
+    final case class MatchTie(totalScore: Int) extends GameSessionResponses
     // Message fired to collect the rematch invitation response 
-    final case class RematchInvitationRequest(opponentName: String) extends GameSessionResponses
+    final case class RematchRequest(opponentName: String) extends GameSessionResponses
     final case class BindGameSession(session: ActorRef[GameSessionManager.GameSessionCommands]) extends GameSessionResponses
     final case object UnbindGameSession extends GameSessionResponses
     final case object MatchmakingFailed extends GameSessionResponses
@@ -63,7 +63,7 @@ class GameSessionManager(context: ActorContext[GameSessionManager.GameSessionCom
             case GamePartnerSelection(opponent, name) => 
                 thisPlayer ! BindGameSession(context.self)
                 opponent ! BindGameSession(context.self)
-                opponent ! GameInvitationRequest(thisPlayerName)
+                opponent ! ChallengeRequest(thisPlayerName)
                 thatPlayer = Some(opponent)
                 thatPlayerName = name
                 Behaviors.same
@@ -93,21 +93,21 @@ class GameSessionManager(context: ActorContext[GameSessionManager.GameSessionCom
                                 gameSessionRecord(1) += 1
                             }
                         }
-                        roundWinner ! AccumulatedScoresUpdate(1, tie)
-                        roundLoser ! AccumulatedScoresUpdate(0, tie)
+                        roundWinner ! UpdateSumScore(1, tie)
+                        roundLoser ! UpdateSumScore(0, tie)
                         if (roundCount - 1 >= 0) {
                             roundManager.get ! StartRound(roundCount)
                             roundCount -= 1    
                         } else {
                             if (gameSessionRecord(0) == gameSessionRecord(1)) {
-                                thisPlayer ! GameSessionTie(gameSessionRecord(0))
-                                thatPlayer.get ! GameSessionTie(gameSessionRecord(1))
+                                thisPlayer ! MatchTie(gameSessionRecord(0))
+                                thatPlayer.get ! MatchTie(gameSessionRecord(1))
                             } else if (gameSessionRecord(0) > gameSessionRecord(1)) {
-                                thisPlayer ! GameSessionVictory(gameSessionRecord(0))
-                                thatPlayer.get ! GameSessionLost(gameSessionRecord(1))
+                                thisPlayer ! MatchWin(gameSessionRecord(0))
+                                thatPlayer.get ! MatchLost(gameSessionRecord(1))
                             } else if (gameSessionRecord(1) > gameSessionRecord(0)) {
-                                thisPlayer ! GameSessionLost(gameSessionRecord(0))
-                                thatPlayer.get ! GameSessionVictory(gameSessionRecord(1))
+                                thisPlayer ! MatchLost(gameSessionRecord(0))
+                                thatPlayer.get ! MatchWin(gameSessionRecord(1))
                             }
                             context.self ! RematchInvitation
                             roundCount = 3
@@ -118,10 +118,10 @@ class GameSessionManager(context: ActorContext[GameSessionManager.GameSessionCom
                         Behaviors.unhandled
                 }
             case RematchInvitation => 
-                thisPlayer ! RematchInvitationRequest(thatPlayerName)
-                thatPlayer.get ! RematchInvitationRequest(thisPlayerName)
+                thisPlayer ! RematchRequest(thatPlayerName)
+                thatPlayer.get ! RematchRequest(thisPlayerName)
                 Behaviors.same
-            case RematchInvitationResponse(response) => 
+            case RematchResponse(response) => 
                 println(Console.CYAN + "Got a rematch invitation response! " + response.toString() + Console.RESET)
                 rematchIntentionMap = rematchIntentionMap.appended(response)
                 if (rematchIntentionMap.size == 2) {

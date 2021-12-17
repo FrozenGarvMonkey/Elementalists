@@ -63,9 +63,9 @@ object RoundManager {
     sealed trait RoundManagerCommands 
     sealed trait RoundManagerResponses extends GameSessionResponses
     // RPS Selection fired by the player 
-    final case class EarthFireWaterSelection(fromPlayer: ActorRef[GameSessionResponses], selection: EarthFireWaterCommands) extends RoundManagerCommands
+    final case class ElementSelection(fromPlayer: ActorRef[GameSessionResponses], selection: EarthFireWaterCommands) extends RoundManagerCommands
     // Request fired to the player to request them to make a selection
-    final case class EarthFireWaterSelectionRequest(roundManager: ActorRef[RoundManagerCommands], remainingRound: Int) extends RoundManagerResponses
+    final case class ElementSelectionRequest(roundManager: ActorRef[RoundManagerCommands], remainingRound: Int) extends RoundManagerResponses
 
     final case object AllPlayersSelected extends RoundManagerCommands
     final case class StartRound(remainingRound: Int) extends RoundManagerCommands
@@ -93,7 +93,7 @@ class RoundManager(context: ActorContext[RoundManager.RoundManagerCommands], gam
     override def onMessage(msg: RoundManagerCommands): Behavior[RoundManagerCommands] = {
         msg match {
             // When one of the player has made a selection
-            case EarthFireWaterSelection(player, selection) =>            
+            case ElementSelection(player, selection) =>            
                 playerSelectionMap += (player.path.toString() -> selection)
                 // If both of the players have already responded
                 if (!playerSelectionMap.valuesIterator.contains(NotSelected)) {
@@ -114,8 +114,8 @@ class RoundManager(context: ActorContext[RoundManager.RoundManagerCommands], gam
             case StartRound(remainingRound) => 
                 playerSelectionMap += (thisPlayer.path.toString() -> NotSelected)
                 playerSelectionMap += (thatPlayer.path.toString() -> NotSelected)
-                thisPlayer ! EarthFireWaterSelectionRequest(context.self, remainingRound)
-                thatPlayer ! EarthFireWaterSelectionRequest(context.self, remainingRound)
+                thisPlayer ! ElementSelectionRequest(context.self, remainingRound)
+                thatPlayer ! ElementSelectionRequest(context.self, remainingRound)
                 Behaviors.same 
         }
     }

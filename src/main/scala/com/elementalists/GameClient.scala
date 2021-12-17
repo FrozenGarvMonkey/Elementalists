@@ -9,7 +9,8 @@ import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.receptionist.Receptionist
 import _root_.com.typesafe.config.ConfigFactory
 import scala.io.StdIn
-import SessionManager.{NameRejected, OnlineMembersListing, NewPlayerAcknowledgement}
+import scala.util.Try
+import SessionManager.{RejectUserName, MembersListing, NewConnectionAcknowledgement}
 
 // Client App Runner 
 object ClientMain extends App {
@@ -34,13 +35,13 @@ object GameClient {
     final case object BecomeIdle extends Command
     final case class ReceivedGameInvitation(fromPlayerName: String) extends Command
     final case class ReceivedRematchInvitation(opponentName: String) extends Command
-    final case class MakeRPSSelection(roundCount: Int) extends Command
+    final case class MakeElementSelection(roundCount: Int) extends Command
     final case class RoundLost(score: Int) extends Command
     final case class RoundVictory(score: Int) extends Command 
     final case class RoundTie(score: Int) extends Command
-    final case class GameLost(score: Int) extends Command
-    final case class GameVictory(score: Int) extends Command
-    final case class GameTie(score: Int) extends Command
+    final case class MatchLost(score: Int) extends Command
+    final case class MatchVictory(score: Int) extends Command
+    final case class MatchTie(score: Int) extends Command
 
     // Factory method for the client actor behavior 
     def apply(): Behavior[Command] = Behaviors.setup { context => 
@@ -81,24 +82,24 @@ class GameClient(context: ActorContext[GameClient.Command]) extends AbstractBeha
             case ClientNameRegistration => 
                 val clientInput = readClientName()
                 println(Console.CYAN + "Checking whether your name is available..." + Console.RESET)
-                sessionServer.get ! SessionManager.NameCheckRequest(clientInput.replace(" ", ""), context.self)
+                sessionServer.get ! SessionManager.VerifyUserName(clientInput.replace(" ", ""), context.self)
                 Behaviors.same
-            case NameRejected => 
+            case RejectUserName => 
                 println(Console.CYAN + "Sorry, the name is taken by other players." + Console.RESET)
                 context.self ! ClientNameRegistration
                 Behaviors.same
-            case OnlineMembersListing(players) => 
+            case MembersListing(players) => 
                 println(Console.CYAN + "Member list updated." + Console.RESET)
                 onlineMembers = players.removed(playerName)
                 if (idle && onlineMembers.size >= 1) { showAvailableOpponents() }
                 Behaviors.same
-            case NewPlayerAcknowledgement(player, playerName, gameSessionManager, players) => 
+            case NewConnectionAcknowledgement(player, playerName, gameSessionManager, players) => 
                 println(Console.CYAN + s"Successfully registered with name $playerName!" + Console.RESET)
                 this.player = Some(player)
                 this.playerName = playerName
                 gameSessionServer = Some(gameSessionManager)
                 onlineMembers = players.removed(playerName)
-                presentGameMenu()
+                displayGameMenu()
                 Behaviors.same
             case ReceivedGameInvitation(from) =>
                 onGameInvitation(Console.CYAN + s"Received game invitation from $from!\nDo you want to play a game with him/her? (Y/N)" + Console.RESET)
@@ -109,10 +110,10 @@ class GameClient(context: ActorContext[GameClient.Command]) extends AbstractBeha
             case BecomeIdle =>
                 println(Console.CYAN + "It seems like your opponent does not want to play the game..." + Console.RESET)
                 idle = true
-                presentGameMenu()
+                displayGameMenu()
                 Behaviors.same
-            case MakeRPSSelection(count) => 
-                onRPSSelectionRequest(count)
+            case MakeElementSelection(count) => 
+                onElementSelectionRequest(count)
                 Behaviors.same
             case RoundLost(score) => 
                 onRoundLost(score)
@@ -123,27 +124,27 @@ class GameClient(context: ActorContext[GameClient.Command]) extends AbstractBeha
             case RoundTie(score) => 
                 onRoundTie(score)
                 Behaviors.same
-            case GameLost(score) => 
-                onGameLost(score)
+            case MatchLost(score) => 
+                onMatchLost(score)
                 Behaviors.same
-            case GameVictory(score) => 
-                onGameVictory(score)
+            case MatchVictory(score) => 
+                onMatchVictory(score)
                 Behaviors.same 
-            case GameTie(score) => 
-                onGameTie(score)
+            case MatchTie(score) => 
+                onMatchTie(score)
                 Behaviors.same
         }
     }
 
-    private def onGameLost(score: Int) = {
+    private def onMatchLost(score: Int) = {
         println(Console.RED + Console.BOLD + s"You have lost the game. Total score earned in this game: $score" + Console.RESET)
     }
 
-    private def onGameVictory(score: Int) = {
+    private def onMatchVictory(score: Int) = {
         println(Console.GREEN + Console.BOLD + s"You have won the game! Total score earned in this game: $score" + Console.RESET)
     }
 
-    private def onGameTie(score: Int) = {
+    private def onMatchTie(score: Int) = {
         println(Console.CYAN + Console.BOLD + s"No one wins the game!. Total score earned in this game: $score" + Console.RESET)
     }
 
@@ -164,7 +165,7 @@ class GameClient(context: ActorContext[GameClient.Command]) extends AbstractBeha
         StdIn.readLine()
     }
 
-    private def presentGameMenu(): Unit = {
+    private def displayGameMenu(): Unit = {
         println(Console.CYAN + Console.BOLD + "Welcome to the Elementalists!" + Console.RESET)
         
         if (onlineMembers.size > 0) { 
@@ -190,47 +191,51 @@ class GameClient(context: ActorContext[GameClient.Command]) extends AbstractBeha
         println(displayMessage)
         val selection = StdIn.readLine()
         selection.toUpperCase match {
-            case "Y" => player.get ! Player.ClientRematchInvitationResponse(true)
-            case _ => player.get ! Player.ClientRematchInvitationResponse(false) 
+            case "Y" => player.get ! Player.ClientRematchResponse(true)
+            case _ => player.get ! Player.ClientRematchResponse(false) 
         }
     }
 
-    private def onRPSSelectionRequest(count: Int) = {
+    private def onElementSelectionRequest(count: Int) = {
         val validResponse  = List("1", "2", "3")
         var selection = ""
         while (!validResponse.contains(selection)) {
             println(Console.CYAN + Console.BOLD + s"Remaining rounds: $count\nPlease make a selection:\n1. Earth\n2. Fire\n3. Water" + Console.RESET)
             selection = StdIn.readLine()
+            if (!validResponse.contains(selection)){
+                println(Console.RED + Console.BOLD + "Invalid Choice, Try Again\n" + Console.RESET)
+            }
         }
-        player.get ! Player.ClientRPSSelection(selection)
+        player.get ! Player.UserElementSelection(selection)
     }
 
     private def showAvailableOpponents(): Unit = {
         val memberArray = onlineMembers.keys.toArray
-        println(Console.CYAN + Console.BOLD + "Online Members" + Console.RESET)
-        for (m <- memberArray) {
-            println(Console.CYAN + s"${memberArray.indexOf(m)}.$m" + Console.RESET)
-        }
-        // TODO: might be in deadlock 
-        println(Console.CYAN + Console.BOLD + "Enter the player number to play the game with: (-1 if there is no one that you wish to play the game with)" + Console.RESET)
-        val choice = StdIn.readLine()
-        try {
-            val index = choice.toInt
-            if (index >= -1 && index < memberArray.length){
-                if (index != -1) {
-                    
-                    val selectedName = memberArray(index)
-                    gameSessionServer.get ! GameSessionManager.GamePartnerSelection(onlineMembers(selectedName), selectedName)
-                    idle = false
-                    println(Console.CYAN + Console.BOLD + "Invitation sent! Waiting for the player to accept..." + Console.RESET)
+        var loop = true
+        while(loop){
+            println(Console.CYAN + Console.BOLD + "Online Members" + Console.RESET)
+            for (m <- memberArray) {
+                println(Console.CYAN + s"${memberArray.indexOf(m)}.$m" + Console.RESET)
+            }
+            println("Enter '-1' to not challenge anyone - check for invitation")
+            val choice = StdIn.readLine("Enter your choice: ")
+
+            if (Try(choice.toInt).isSuccess){
+                val index = choice.toInt
+                if (index >= -1 && index < memberArray.length){
+                    loop = false
+                    if (index != -1) {
+                        val selectedName = memberArray(index)
+                        gameSessionServer.get ! GameSessionManager.GamePartnerSelection(onlineMembers(selectedName), selectedName)
+                        idle = false
+                        println(Console.CYAN + Console.BOLD + "Invitation sent! Waiting for the player to accept..." + Console.RESET)
+                    }
+                } else{
+                    println(Console.RED + Console.BOLD + "Invalid Choice, Try Again\n" + Console.RESET)
                 }
             } else{
-                println(Console.RED + Console.BOLD + "Invalid Choice, Try Again\n" + Console.RESET)
+                 println(Console.RED + Console.BOLD + "Invalid Choice, Try Again\n" + Console.RESET)
             }
-        }
-        catch{
-            case _ : Throwable =>
-                println(Console.RED + Console.BOLD + "Invalid Choice, Try Again\n" + Console.RESET)
         }
     }
 }
