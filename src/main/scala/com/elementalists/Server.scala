@@ -17,7 +17,7 @@ object ServerMain extends App {
     val defaultConfig = ConfigFactory.load()
     // Set the port that the server should connect to 
     val serverConfig = ConfigFactory.parseString("akka.remote.artery.canonical.port=5020").withFallback(defaultConfig)
-    val serverSystem = ActorSystem(GameServer(), "RockPaperScissors", serverConfig)
+    val serverSystem = ActorSystem(GameServer(), "EarthFireWater", serverConfig)
 }
 
 object GameServer {
@@ -26,7 +26,7 @@ object GameServer {
     final case class SessionServerLookup(clientRef: ActorRef[GameClient.ServerResponse]) extends Command
     
     // Server key to register in the receiptionist service so that the remote client can get the actor for the server 
-    val ServerKey: ServiceKey[Command] = ServiceKey("RockPapperScissorsServer")
+    val ServerKey: ServiceKey[Command] = ServiceKey("EarthPapperWaterServer")
 
     def apply(): Behavior[Command] = {
         Behaviors.setup { context => 

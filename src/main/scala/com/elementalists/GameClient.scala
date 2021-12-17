@@ -18,7 +18,7 @@ object ClientMain extends App {
     // Set the port that the client app should connect to 
     val clientConfig = ConfigFactory.parseString("akka.remote.artery.canonical.port=0").withFallback(defaultConfig)
 
-    val system = ActorSystem(GameClient(), "RockPaperScissors", clientConfig)
+    val system = ActorSystem(GameClient(), "EarthFireWater", clientConfig)
     // Look up for the server actor so that the client actor can fire a message to it 
     system ! GameClient.ServerLookup
 }
@@ -197,7 +197,7 @@ class GameClient(context: ActorContext[GameClient.Command]) extends AbstractBeha
     }
 
     private def onRPSSelectionRequest(count: Int) = {
-        println(s"Remaining rounds: $count\nPlease make a selection:\n1. Rock\n2. Paper\n3. Scissors\n")
+        println(s"Remaining rounds: $count\nPlease make a selection:\n1. Earth\n2. Fire\n3. Water\n")
         val selection = StdIn.readLine()
         player.get ! Player.ClientRPSSelection(selection)
     }

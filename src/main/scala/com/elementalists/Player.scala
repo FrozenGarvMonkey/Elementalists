@@ -6,7 +6,7 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.ActorContext
 import GameSessionManager._
-import RoundManager.{RockPaperScissorsSelectionRequest, RockPaperScissorsSelection, RockPaperScissorsCommands, Rock, Paper, Scissors, NotSelected}
+import RoundManager.{EarthFireWaterSelectionRequest, EarthFireWaterSelection, EarthFireWaterCommands, Earth, Fire, Water, NotSelected}
 import _root_.com.elementalists.GameSessionManager.GameSessionCommands
 
 /* Player class that represents a client after succesful name registration. It holds the accumulated scores of each player. */ 
@@ -55,19 +55,19 @@ class Player(context: ActorContext[GameSessionResponses], val name: String, val 
             case ClientRematchInvitationResponse(agreed) => 
                 if (agreed) { gameSession.get ! RematchInvitationResponse(InvitationAccepted) } else { gameSession.get ! RematchInvitationResponse(InvitationRejected) }
                 this 
-            case RockPaperScissorsSelectionRequest(roundManager, roundCount) => 
+            case EarthFireWaterSelectionRequest(roundManager, roundCount) => 
                 this.roundManager = Some(roundManager)
                 clientRef ! GameClient.MakeRPSSelection(roundCount)
                 this
             case ClientRPSSelection(selection) => 
-                var rpsSelection: RoundManager.RockPaperScissorsCommands = RoundManager.NotSelected
+                var rpsSelection: RoundManager.EarthFireWaterCommands = RoundManager.NotSelected
                 selection match {
-                    case "1" => rpsSelection = Rock
-                    case "2" => rpsSelection = Paper
-                    case "3" => rpsSelection = Scissors
+                    case "1" => rpsSelection = Earth
+                    case "2" => rpsSelection = Fire
+                    case "3" => rpsSelection = Water
                     case _ => rpsSelection = NotSelected
                 }
-                roundManager.get ! RockPaperScissorsSelection(context.self, rpsSelection)
+                roundManager.get ! EarthFireWaterSelection(context.self, rpsSelection)
                 this
             case AccumulatedScoresUpdate(change, tie) => 
                 if (tie) {
